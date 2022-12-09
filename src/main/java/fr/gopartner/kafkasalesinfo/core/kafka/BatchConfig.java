@@ -3,12 +3,15 @@ package fr.gopartner.kafkasalesinfo.core.kafka;
 
 import fr.gopartner.kafkasalesinfo.domain.salesInfo.SalesInfo;
 import fr.gopartner.kafkasalesinfo.domain.salesInfo.SalesInfoDto;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
+import org.springframework.batch.core.*;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,20 +27,22 @@ public class BatchConfig {
     private final StepBuilderFactory stepBuilderFactory;
     private final SalesInfoItemProcessor salesInfoItemProcessor;
     private final SalesItemWriter salesItemWriter;
+    private final JobLauncher jobLauncher;
     @Value("${inputFile}")
     private String url;
 
     public BatchConfig(JobBuilderFactory jobBuilderFactory, StepBuilderFactory stepBuilderFactory,
-                       SalesInfoItemProcessor salesInfoItemProcessor, SalesItemWriter salesItemWriter) {
+                       SalesInfoItemProcessor salesInfoItemProcessor, SalesItemWriter salesItemWriter, JobLauncher jobLauncher) {
         this.jobBuilderFactory = jobBuilderFactory;
         this.stepBuilderFactory = stepBuilderFactory;
         this.salesInfoItemProcessor = salesInfoItemProcessor;
         this.salesItemWriter = salesItemWriter;
+        this.jobLauncher = jobLauncher;
     }
 
     @Bean
     public Job importSalesInfo() {
-        return jobBuilderFactory.get("importSalesInfo")
+        return jobBuilderFactory.get("importSalesInfo" + java.lang.System.currentTimeMillis())
                 .incrementer(new RunIdIncrementer())
                 .start(fromFileIntoDataBase())
                 .build();
@@ -66,11 +71,12 @@ public class BatchConfig {
                 .build();
     }
 
-  /*  @Bean
-    public BatchStatus load() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+    @Bean
+    public BatchStatus load() throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException,
+            JobParametersInvalidException, JobRestartException {
         var parameters = new JobParameters();
         var jobExecution = jobLauncher.run(importSalesInfo(), parameters);
         return jobExecution.getStatus();
-    }*/
+    }
 
 }
